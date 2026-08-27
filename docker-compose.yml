@@ -1,0 +1,29 @@
+services:
+  dipbot:
+    build: .
+    image: dipbot:latest
+    container_name: dipbot
+    restart: unless-stopped
+
+    # Secrets stay in .env on the host; nothing is baked into the image.
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/dipbot.sqlite
+
+    # SQLite lives on a named volume so `docker compose down` and image
+    # rebuilds keep the watchlist, tuned settings and alert history.
+    volumes:
+      - dipbot-data:/data
+
+    # Docker's default json-file driver grows without limit; this bot logs a
+    # line per alert and per reconnect, so cap it.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    stop_grace_period: 30s
+
+volumes:
+  dipbot-data:

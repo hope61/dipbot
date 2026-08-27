@@ -1,0 +1,97 @@
+# ---------------------------------------------------------------------------
+# secrets
+#
+# .env holds the bot token, which is full control of the bot account, plus the
+# channel id, owner id and any paid RPC key. .env.example is the committed
+# template and is the ONLY .env* file that may be tracked.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+
+# ---------------------------------------------------------------------------
+# runtime state
+#
+# The settings table lives in SQLite, so a committed DB would ship someone
+# else's thresholds and watchlist. In Docker this is a named volume at
+# /data/dipbot.sqlite; locally it is ./data/.
+# ---------------------------------------------------------------------------
+data/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*-backup-*.sqlite
+*.log
+
+
+# ---------------------------------------------------------------------------
+# spike artifacts
+#
+# Recorded ticks, discovered vaults and scale-test logs from spike/. Several MB
+# of live-market recordings that only mean anything alongside the run that made
+# them. tests/fixtures/ticks.jsonl is the curated replay corpus and IS tracked -
+# tests/test_replay.py fails without it, so never widen these into a bare
+# *.jsonl rule.
+# ---------------------------------------------------------------------------
+spike/data/
+spike/tokens.json
+spike/vaults.json
+spike/other_dexes.json
+
+
+# ---------------------------------------------------------------------------
+# python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+.Python
+
+
+# ---------------------------------------------------------------------------
+# test & tooling caches
+# ---------------------------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+
+# ---------------------------------------------------------------------------
+# AI assistant context
+#
+# Working notes for coding agents, not part of the project. Kept local so the
+# published repo carries only its own documentation. Nothing in dipbot/ or
+# tests/ reads any of these, so ignoring them changes no behaviour.
+# ---------------------------------------------------------------------------
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.claude/
+.cursor/
+.cursorrules
+.windsurfrules
+.aider*
+.github/copilot-instructions.md
+
+
+# ---------------------------------------------------------------------------
+# editors & OS
+# ---------------------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
