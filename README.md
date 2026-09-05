@@ -131,10 +131,12 @@ Each token sits in one of two tiers, and the tier decides which windows may fire
 
 Polled data cannot support a 10-second window, so the detector refuses those
 windows rather than emitting alerts the data does not support. Tokens are
-promoted to realtime automatically as they become priceable. Realtime currently
-covers pump.fun bonding curves and PumpSwap pools; concentrated liquidity venues
-(Raydium CLMM, Orca Whirlpool, Meteora DLMM) price from `sqrtPriceX64` or an
-active bin rather than vault ratios, so they stay polled.
+promoted to realtime automatically as they become priceable. Realtime covers
+constant-product pools, where the two vault balances *are* the price: pump.fun
+bonding curves, PumpSwap, Raydium AMM v4 and Raydium CPMM. Concentrated
+liquidity venues (Raydium CLMM, Orca Whirlpool, Meteora DLMM) stay polled —
+their vaults hold liquidity across every price range, so the same ratio came
+out 36–96% away from spot when sampled against live pools.
 
 Detector rules, each added after a specific failure in testing:
 

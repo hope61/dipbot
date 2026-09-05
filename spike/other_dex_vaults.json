@@ -1,0 +1,188 @@
+[
+  {
+    "program": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+    "symbol": "Bonk",
+    "dex_id": "orca",
+    "labels": [
+      "wp"
+    ],
+    "pair": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
+    "data_len": 653,
+    "base_offset": 213,
+    "quote_offset": 133,
+    "spot": 1.0246832693467654e-08,
+    "ref": 3.223e-08,
+    "err_pct": -68.20715887847454,
+    "resolved": true
+  },
+  {
+    "program": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+    "symbol": "Bonk",
+    "dex_id": "orca",
+    "labels": [
+      "wp"
+    ],
+    "pair": "BqnpCdDLPV2pFdAaLnVidmn3G93RP2p5oRdGEY2sJGez",
+    "data_len": 653,
+    "base_offset": 213,
+    "quote_offset": 133,
+    "spot": 4.555933597036394e-08,
+    "ref": 3.189e-08,
+    "err_pct": 42.864019976054976,
+    "resolved": true
+  },
+  {
+    "program": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+    "symbol": "Bonk",
+    "dex_id": "orca",
+    "labels": [
+      "wp"
+    ],
+    "pair": "3ne4mWqdYuNiYrYZC9TrA3FcfuFdErghH97vNPbjicr1",
+    "data_len": 653,
+    "base_offset": 213,
+    "quote_offset": 133,
+    "spot": 1.9707552753399923e-08,
+    "ref": 3.206e-08,
+    "err_pct": -38.52915547910192,
+    "resolved": true
+  },
+  {
+    "program": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+    "symbol": "$WIF",
+    "dex_id": "raydium",
+    "labels": null,
+    "pair": "EP2ib6dYdEeqD8MfE2ezHCxX3kP3K2eLKkirfPm5eyMx",
+    "data_len": 752,
+    "base_offset": 336,
+    "quote_offset": 368,
+    "spot": 0.0019972005074097086,
+    "ref": 0.002002,
+    "err_pct": -0.23973489461994255,
+    "resolved": true
+  },
+  {
+    "program": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+    "symbol": "POPCAT",
+    "dex_id": "raydium",
+    "labels": null,
+    "pair": "FRhB8L7Y9Qq41qZXYLtC2nw8An1RJfLLxRF2x9RwLLMo",
+    "data_len": 752,
+    "base_offset": 336,
+    "quote_offset": 368,
+    "spot": 0.0005023916933553876,
+    "ref": 0.0005011,
+    "err_pct": 0.2577715736155634,
+    "resolved": true
+  },
+  {
+    "program": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+    "symbol": "RAY",
+    "dex_id": "raydium",
+    "labels": null,
+    "pair": "AVs9TA4nWDzfPJE9gGVNJMVhcQy3V9PGazuz33BfG2RA",
+    "data_len": 752,
+    "base_offset": 336,
+    "quote_offset": 368,
+    "spot": 0.008129554999357944,
+    "ref": 0.008148,
+    "err_pct": -0.22637457832666252,
+    "resolved": true
+  },
+  {
+    "program": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+    "symbol": "JUP",
+    "dex_id": "meteora",
+    "labels": [
+      "DLMM"
+    ],
+    "pair": "HdsFGjjY46twFKjqHqUyT2bnRS4XCo1HaExts5CSNprU",
+    "data_len": 904,
+    "base_offset": 152,
+    "quote_offset": 184,
+    "spot": 0.0012262622046417726,
+    "ref": 0.002125,
+    "err_pct": -42.29354331097541,
+    "resolved": true
+  },
+  {
+    "program": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+    "symbol": "JUP",
+    "dex_id": "meteora",
+    "labels": [
+      "DLMM"
+    ],
+    "pair": "Eio6hAieGTAmKgfvbEfbnXke6o5kfEd74tqHm2Z9SFjf",
+    "data_len": 904,
+    "base_offset": 152,
+    "quote_offset": 184,
+    "spot": 0.0006622194320148934,
+    "ref": 0.002129,
+    "err_pct": -68.89528266721966,
+    "resolved": true
+  },
+  {
+    "program": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+    "symbol": "JUP",
+    "dex_id": "meteora",
+    "labels": [
+      "DLMM"
+    ],
+    "pair": "C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg",
+    "data_len": 904,
+    "base_offset": 152,
+    "quote_offset": 184,
+    "spot": 0.001353656409047141,
+    "ref": 0.002118,
+    "err_pct": -36.08798824140034,
+    "resolved": true
+  },
+  {
+    "program": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+    "symbol": "RAY",
+    "dex_id": "raydium",
+    "labels": [
+      "CLMM"
+    ],
+    "pair": "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2",
+    "data_len": 1544,
+    "base_offset": 169,
+    "quote_offset": 137,
+    "spot": 0.002825670161563218,
+    "ref": 0.008145,
+    "err_pct": -65.30791698510474,
+    "resolved": true
+  },
+  {
+    "program": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+    "symbol": "RAY",
+    "dex_id": "raydium",
+    "labels": [
+      "CLMM"
+    ],
+    "pair": "Enfoa5Xdtirwa46xxa5LUVcQWe7EUb2pGzTjfvU7EBS1",
+    "data_len": 1544,
+    "base_offset": 169,
+    "quote_offset": 137,
+    "spot": 0.0035117754554917853,
+    "ref": 0.008127,
+    "err_pct": -56.78878484690802,
+    "resolved": true
+  },
+  {
+    "program": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+    "symbol": "RAY",
+    "dex_id": "raydium",
+    "labels": [
+      "CLMM"
+    ],
+    "pair": "DfptScHTyb9YwDV27HsDaBAwPr38ij9Qu3HgEwD8hs4h",
+    "data_len": 1544,
+    "base_offset": 169,
+    "quote_offset": 137,
+    "spot": 0.0003151473580067871,
+    "ref": 0.008119,
+    "err_pct": -96.1183968714523,
+    "resolved": true
+  }
+]

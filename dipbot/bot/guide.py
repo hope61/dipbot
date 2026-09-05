@@ -51,14 +51,17 @@ PAGES: dict[str, tuple[str, str]] = {
         "<b>⚡ realtime</b>\n"
         "Price read straight from the blockchain, updated on every single trade. "
         "Gets all four windows including 10s.\n"
-        "Works for bonded pump.fun coins trading on PumpSwap.\n\n"
+        "Works for bonded pump.fun coins on PumpSwap, and for coins on "
+        "Raydium's standard AMM and CPMM pools.\n\n"
         "<b>🐢 polled</b>\n"
         "Price comes from DexScreener, which only refreshes every 30 seconds. "
         "Only gets the 3m and 5m windows.\n\n"
         "A 10-second alert on 30-second-old data would be guesswork, so the bot "
         "refuses to offer it rather than pretending.\n\n"
-        "Coins on Raydium, Orca and Meteora are 🐢. A pump.fun coin that "
-        "graduates stays ⚡ — the bot notices and switches automatically.",
+        "Coins on Orca, Meteora and Raydium's CLMM pools are 🐢: those venues "
+        "spread liquidity across price ranges, so their pool balances don't "
+        "give a usable price. A pump.fun coin that graduates stays ⚡ — the bot "
+        "notices and switches automatically.",
     ),
     "alert": (
         "Reading an alert",
