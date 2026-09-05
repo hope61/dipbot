@@ -89,7 +89,6 @@ def test_render_matches_the_requested_format_exactly():
     a = alert(
         mint="AA33znW3bciXvrj8AUwPryVgDiasmEGxaqCwjHEWGdkd",
         window="1m", drawdown=60.0, mcap_peak=122_000.0, mcap_now=60_000.0,
-        ath=300_000.0,
         meta=make_meta(name="Coin Name", volume_m5=300_000.0, volume_h24=700_000.0,
                        pair_created_at=int((time.time() - 8 * 60) * 1000)),
     )
@@ -97,7 +96,6 @@ def test_render_matches_the_requested_format_exactly():
         "Coin Name -60% in 1m\n"
         "\n"
         "MC: 122k -> 60k\n"
-        "ATH: 300k\n"
         "Age: 8m\n"
         "Vol 5m: 300k\n"
         "Vol 24h: 700k\n"
@@ -280,15 +278,6 @@ def test_observed_cap_percentage_is_independent_of_the_headline():
     assert "MC: 100k -> 80k" in text                # cap line, from observations
 
 
-def test_render_shows_the_tracked_high():
-    text = render(alert(meta=make_meta(ath_market_cap=180_000.0)))
-    assert "ATH: 180k" in text
-
-
-def test_render_omits_ath_when_never_recorded():
-    assert "ATH" not in render(alert(meta=make_meta(ath_market_cap=None)))
-
-
 def test_render_survives_missing_market_cap():
     text = render(alert(meta=make_meta(market_cap=None), mcap_now=None, mcap_peak=None))
     assert "Cate" in text
@@ -411,7 +400,7 @@ def test_trojan_button_uses_module_defaults(monkeypatch):
 def added_meta(**kw):
     base = dict(
         name="dog in cats world", symbol="BARK", market_cap=171_394.0,
-        ath_market_cap=171_394.0, volume_m5=14_000.0, volume_h24=815_000.0,
+        volume_m5=14_000.0, volume_h24=815_000.0,
         pair_created_at=int((time.time() - 62 * 60) * 1000),
         mint="BTKfTUMRYsS5W5RXfbtMcgJf9fqoz1rhRcJtESyPpump",
     )
@@ -425,7 +414,6 @@ def test_added_message_matches_the_alert_layout():
         "dog in cats world added by @jman\n"
         "\n"
         "MC: 171k\n"
-        "ATH: 171k\n"
         "Age: 1h 2m\n"
         "Vol 5m: 14k\n"
         "Vol 24h: 815k\n"
@@ -447,9 +435,8 @@ def test_added_message_drops_dex_and_liquidity():
 
 
 def test_added_message_survives_missing_fields():
-    text = render_added(added_meta(market_cap=None, ath_market_cap=None), "@x")
+    text = render_added(added_meta(market_cap=None), "@x")
     assert "MC:" not in text
-    assert "ATH:" not in text
     assert "Vol 24h:" in text
 
 

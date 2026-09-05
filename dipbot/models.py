@@ -76,9 +76,6 @@ class TokenMeta:
     txns_m5_buys: int | None = None
     txns_m5_sells: int | None = None
     updated_at: float = 0.0
-    #: Highest market cap seen since this bot started watching the token.
-    #: Not a true all-time high - DexScreener exposes no historical peak.
-    ath_market_cap: float | None = None
 
     @property
     def age_minutes(self) -> float | None:

@@ -21,7 +21,6 @@ from ..filters import filters_enabled as filter_switch
 from . import guide as guide_ui
 from . import settings_ui as ui
 from ..feeds.dexscreener import DexScreener, tier_for
-from ..feeds.geckoterminal import implied_supply
 from ..models import Tier
 
 log = logging.getLogger(__name__)
@@ -91,7 +90,6 @@ class Deps:
         detector=None,
         summary=None,
         sanity=None,
-        gecko=None,
     ):
         self.db = db
         self.dex = dex
@@ -102,7 +100,6 @@ class Deps:
         self.detector = detector
         self.summary = summary
         self.sanity = sanity
-        self.gecko = gecko
         self.started_at = time.time()
 
 
@@ -188,20 +185,9 @@ async def add_coin(message: Message, raw: str, quiet: bool = False) -> bool:
         await message.answer("Already on the watchlist — details refreshed.")
         return False
 
-    # Seed a real all-time high from the pool's own history. Without it the
-    # peak would only ever be "highest since we started watching", which
-    # understates for any coin added after its top.
-    if d.gecko:
-        supply = implied_supply(meta.market_cap, meta.price_usd)
-        try:
-            peak = await d.gecko.peak_market_cap(meta.pair_address, supply or 0)
-        except Exception:
-            peak = None
-        if peak:
-            await d.db.set_ath(meta.mint, peak)
-
-    # Read back what was stored: the peak only exists once the row is written.
-    # A coin removed and re-added keeps the peak from its earlier stint.
+    # Read back what was stored rather than trusting the object in hand: a
+    # coin removed and re-added keeps what was recorded during its earlier
+    # stint, since clearing the watchlist leaves token_meta alone.
     meta = await d.db.get_meta(meta.mint) or meta
 
     # The channel is the shared record of what is being watched and who put it
@@ -266,8 +252,7 @@ async def cmd_clear(message: Message) -> None:
 
     await message.answer(
         f"Remove all <b>{len(tokens)}</b> coins?\n\n{names}\n\n"
-        "<i>Settings and admins are untouched. Recorded all-time highs are kept, "
-        "so re-adding a coin restores its peak.</i>",
+        "<i>Settings and admins are untouched.</i>",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[

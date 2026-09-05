@@ -46,8 +46,7 @@ CREATE TABLE IF NOT EXISTS token_meta (
     pair_created_at INTEGER,
     txns_m5_buys    INTEGER,
     txns_m5_sells   INTEGER,
-    updated_at      REAL,
-    ath_market_cap  REAL
+    updated_at      REAL
 );
 
 -- Chain price sources, cached so a restart doesn't re-resolve every token
@@ -114,15 +113,20 @@ class Database:
         return await self.seed_settings(seed) if seed else 0
 
     async def _migrate(self) -> None:
-        """Add columns to databases created before they existed.
+        """Reconcile the schema of databases created by an older version.
 
-        CREATE TABLE IF NOT EXISTS silently skips existing tables, so new
-        columns need an explicit ALTER or older installs break on first read.
+        CREATE TABLE IF NOT EXISTS silently skips existing tables, so a schema
+        change needs an explicit ALTER or older installs break on first read.
+
+        ath_market_cap was dropped when the ATH display was removed. It has to
+        go rather than being left in place: get_meta splats SELECT * straight
+        into TokenMeta, so a column with no matching field raises TypeError on
+        the first read and takes the bot down.
         """
         async with self._conn.execute("PRAGMA table_info(token_meta)") as cur:
             columns = {row["name"] async for row in cur}
-        if "ath_market_cap" not in columns:
-            await self._conn.execute("ALTER TABLE token_meta ADD COLUMN ath_market_cap REAL")
+        if "ath_market_cap" in columns:
+            await self._conn.execute("ALTER TABLE token_meta DROP COLUMN ath_market_cap")
 
     async def close(self) -> None:
         if self._conn is not None:
@@ -183,8 +187,8 @@ class Database:
     async def clear_watchlist(self) -> int:
         """Stop watching everything. Returns how many were removed.
 
-        Metadata rows are kept on purpose, so re-adding a coin restores its
-        recorded all-time high instead of starting over.
+        Metadata rows are kept on purpose, so re-adding a coin starts from what
+        was already known about it rather than an empty row.
         """
         cur = await self.conn.execute("DELETE FROM watchlist")
         await self.conn.commit()
@@ -247,8 +251,8 @@ class Database:
             INSERT INTO token_meta (
                 mint, pair_address, symbol, name, dex_id, price_usd, price_native,
                 liquidity_usd, volume_h24, volume_m5, market_cap, pair_created_at,
-                txns_m5_buys, txns_m5_sells, updated_at, ath_market_cap
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                txns_m5_buys, txns_m5_sells, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(mint) DO UPDATE SET
                 pair_address=excluded.pair_address, symbol=excluded.symbol,
                 name=excluded.name, dex_id=excluded.dex_id,
@@ -257,29 +261,14 @@ class Database:
                 volume_m5=excluded.volume_m5, market_cap=excluded.market_cap,
                 pair_created_at=excluded.pair_created_at,
                 txns_m5_buys=excluded.txns_m5_buys, txns_m5_sells=excluded.txns_m5_sells,
-                updated_at=excluded.updated_at,
-                -- keep the highest market cap ever seen, never lower it
-                ath_market_cap=MAX(
-                    COALESCE(token_meta.ath_market_cap, 0),
-                    COALESCE(excluded.market_cap, 0)
-                )
+                updated_at=excluded.updated_at
             """,
             (
                 meta.mint, meta.pair_address, meta.symbol, meta.name, meta.dex_id,
                 meta.price_usd, meta.price_native, meta.liquidity_usd, meta.volume_h24,
                 meta.volume_m5, meta.market_cap, meta.pair_created_at,
                 meta.txns_m5_buys, meta.txns_m5_sells, meta.updated_at or time.time(),
-                meta.market_cap,
             ),
-        )
-        await self.conn.commit()
-
-    async def set_ath(self, mint: str, ath: float) -> None:
-        """Raise the recorded peak. Never lowers it."""
-        await self.conn.execute(
-            "UPDATE token_meta SET ath_market_cap = MAX(COALESCE(ath_market_cap, 0), ?) "
-            "WHERE mint = ?",
-            (ath, mint),
         )
         await self.conn.commit()
 

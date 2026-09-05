@@ -149,75 +149,14 @@ async def test_last_alert_ts(db):
     assert await db.last_alert_ts("mint1") == pytest.approx(now)
 
 
-# --- market cap high-water mark ---------------------------------------------
-# The peak shown in alerts. It must only ever ratchet upward, and must survive
-# the token falling, going quiet, or the bot restarting.
-
-
-async def test_ath_recorded_on_first_write(db):
-    await db.upsert_meta(make_meta(market_cap=100_000.0))
-    loaded = await db.get_meta(make_meta().mint)
-    assert loaded.ath_market_cap == pytest.approx(100_000.0)
-
-
-async def test_ath_rises_with_a_new_high(db):
-    await db.upsert_meta(make_meta(market_cap=100_000.0))
-    await db.upsert_meta(make_meta(market_cap=250_000.0))
-    loaded = await db.get_meta(make_meta().mint)
-    assert loaded.ath_market_cap == pytest.approx(250_000.0)
-    assert loaded.market_cap == pytest.approx(250_000.0)
-
-
-async def test_ath_survives_the_token_falling(db):
-    """The whole point: a coin down 80% must still report where it peaked."""
-    await db.upsert_meta(make_meta(market_cap=500_000.0))
-    await db.upsert_meta(make_meta(market_cap=100_000.0))
-    loaded = await db.get_meta(make_meta().mint)
-    assert loaded.ath_market_cap == pytest.approx(500_000.0)
-    assert loaded.market_cap == pytest.approx(100_000.0)
-
-
-async def test_ath_never_ratchets_down_over_many_updates(db):
-    for cap in (50_000, 120_000, 90_000, 300_000, 10_000, 240_000):
-        await db.upsert_meta(make_meta(market_cap=float(cap)))
-    loaded = await db.get_meta(make_meta().mint)
-    assert loaded.ath_market_cap == pytest.approx(300_000.0)
-
-
-async def test_ath_ignores_a_missing_market_cap(db):
-    """DexScreener sometimes omits the cap; that must not wipe the peak."""
-    await db.upsert_meta(make_meta(market_cap=400_000.0))
-    await db.upsert_meta(make_meta(market_cap=None))
-    loaded = await db.get_meta(make_meta().mint)
-    assert loaded.ath_market_cap == pytest.approx(400_000.0)
-
-
-async def test_ath_is_per_token(db):
-    await db.upsert_meta(make_meta(mint="mint-a", market_cap=100_000.0))
-    await db.upsert_meta(make_meta(mint="mint-b", market_cap=900_000.0))
-    assert (await db.get_meta("mint-a")).ath_market_cap == pytest.approx(100_000.0)
-    assert (await db.get_meta("mint-b")).ath_market_cap == pytest.approx(900_000.0)
-
-
-async def test_ath_persists_across_reconnect(db, tmp_path):
-    from dipbot.db import Database
-
-    await db.upsert_meta(make_meta(market_cap=750_000.0))
-    await db.close()
-
-    reopened = Database(db.path)
-    await reopened.connect()
-    loaded = await reopened.get_meta(make_meta().mint)
-    assert loaded.ath_market_cap == pytest.approx(750_000.0)
-    await reopened.close()
-
 
 # --- schema migration -------------------------------------------------------
+# ath_market_cap was dropped when the ATH display was removed. get_meta splats
+# SELECT * into TokenMeta, so a leftover column is not harmless - it raises
+# TypeError on the first read. Deployed databases must actually lose it.
 
 
-async def test_migration_adds_the_column_to_an_older_database(tmp_path):
-    """CREATE TABLE IF NOT EXISTS skips existing tables, so installs made
-    before ath_market_cap existed need an explicit ALTER."""
+async def test_migration_drops_the_ath_column_from_an_older_database(tmp_path):
     import sqlite3
 
     from dipbot.db import Database
@@ -228,10 +167,12 @@ async def test_migration_adds_the_column_to_an_older_database(tmp_path):
         "CREATE TABLE token_meta (mint TEXT PRIMARY KEY, pair_address TEXT, symbol TEXT, "
         "name TEXT, dex_id TEXT, price_usd REAL, price_native REAL, liquidity_usd REAL, "
         "volume_h24 REAL, volume_m5 REAL, market_cap REAL, pair_created_at INTEGER, "
-        "txns_m5_buys INTEGER, txns_m5_sells INTEGER, updated_at REAL)"
+        "txns_m5_buys INTEGER, txns_m5_sells INTEGER, updated_at REAL, "
+        "ath_market_cap REAL)"
     )
     legacy.execute(
-        "INSERT INTO token_meta (mint, symbol, market_cap) VALUES ('old-mint', 'OLD', 12345)"
+        "INSERT INTO token_meta (mint, symbol, market_cap, ath_market_cap) "
+        "VALUES ('old-mint', 'OLD', 12345, 99999)"
     )
     legacy.commit()
     legacy.close()
@@ -240,11 +181,38 @@ async def test_migration_adds_the_column_to_an_older_database(tmp_path):
     await db.connect()
 
     columns = [r[1] for r in await (await db.conn.execute("PRAGMA table_info(token_meta)")).fetchall()]
-    assert "ath_market_cap" in columns
+    assert "ath_market_cap" not in columns
+    await db.close()
 
+
+async def test_an_older_database_is_still_readable_after_migrating(tmp_path):
+    """The failure this guards: TokenMeta(**row) choking on a stale column."""
+    import sqlite3
+
+    from dipbot.db import Database
+
+    path = tmp_path / "readable.sqlite"
+    legacy = sqlite3.connect(path)
+    legacy.execute(
+        "CREATE TABLE token_meta (mint TEXT PRIMARY KEY, pair_address TEXT, symbol TEXT, "
+        "name TEXT, dex_id TEXT, price_usd REAL, price_native REAL, liquidity_usd REAL, "
+        "volume_h24 REAL, volume_m5 REAL, market_cap REAL, pair_created_at INTEGER, "
+        "txns_m5_buys INTEGER, txns_m5_sells INTEGER, updated_at REAL, "
+        "ath_market_cap REAL)"
+    )
+    legacy.execute(
+        "INSERT INTO token_meta (mint, symbol, market_cap, ath_market_cap) "
+        "VALUES ('old-mint', 'OLD', 12345, 99999)"
+    )
+    legacy.commit()
+    legacy.close()
+
+    db = Database(path)
+    await db.connect()
     existing = await db.get_meta("old-mint")
     assert existing.symbol == "OLD"
-    assert existing.ath_market_cap is None  # unknown for rows written before tracking
+    assert existing.market_cap == pytest.approx(12345.0)
+    assert not hasattr(existing, "ath_market_cap")
     await db.close()
 
 
@@ -260,36 +228,14 @@ async def test_migration_is_idempotent(tmp_path):
     db = Database(path)
     await db.connect()
     columns = [r[1] for r in await (await db.conn.execute("PRAGMA table_info(token_meta)")).fetchall()]
-    assert columns.count("ath_market_cap") == 1
+    assert "ath_market_cap" not in columns
+    assert columns.count("market_cap") == 1
     await db.close()
 
 
-async def test_migrated_database_starts_tracking_on_next_poll(tmp_path):
-    """An old row with no peak should pick one up from the next update."""
-    from dipbot.db import Database
-
-    db = Database(tmp_path / "m.sqlite")
-    await db.connect()
-    await db.conn.execute(
-        "INSERT INTO token_meta (mint, symbol, market_cap) VALUES ('m1', 'X', 500)"
-    )
-    await db.conn.commit()
-    assert (await db.get_meta("m1")).ath_market_cap is None
-
-    await db.upsert_meta(make_meta(mint="m1", symbol="X", market_cap=800.0))
-    assert (await db.get_meta("m1")).ath_market_cap == pytest.approx(800.0)
-    await db.close()
-
-
-async def test_ath_is_available_immediately_after_first_write(db):
-    """The added-coin message reads it straight back, so it must exist at once."""
-    await db.upsert_meta(make_meta(market_cap=171_394.0, ath_market_cap=None))
-    loaded = await db.get_meta(make_meta().mint)
-    assert loaded.ath_market_cap == pytest.approx(171_394.0)
-
-
-async def test_ath_survives_a_coin_being_removed_and_re_added(db):
-    """Peaks belong to the coin, not to the current watch session."""
+async def test_metadata_survives_a_coin_being_removed_and_re_added(db):
+    """Clearing the watchlist leaves token_meta alone, so a re-add starts from
+    what was already known rather than an empty row."""
     from dipbot.models import Tier
 
     meta = make_meta(market_cap=500_000.0)
@@ -298,23 +244,8 @@ async def test_ath_survives_a_coin_being_removed_and_re_added(db):
 
     await db.remove_token(meta.mint)                      # metadata is kept
     await db.add_token(meta.mint, meta.pair_address, meta.symbol, Tier.REALTIME)
-    await db.upsert_meta(make_meta(market_cap=100_000.0))  # re-added much lower
 
     loaded = await db.get_meta(meta.mint)
-    assert loaded.ath_market_cap == pytest.approx(500_000.0)
-    assert loaded.market_cap == pytest.approx(100_000.0)
-
-
-async def test_set_ath_raises_the_peak(db):
-    await db.upsert_meta(make_meta(market_cap=50_000.0))
-    await db.set_ath(make_meta().mint, 176_373.0)
-    assert (await db.get_meta(make_meta().mint)).ath_market_cap == pytest.approx(176_373.0)
-
-
-async def test_set_ath_never_lowers_it(db):
-    """A real peak from history must not be undone by a later quiet poll."""
-    await db.upsert_meta(make_meta(market_cap=50_000.0))
-    await db.set_ath(make_meta().mint, 176_373.0)
-    await db.set_ath(make_meta().mint, 1_000.0)
-    await db.upsert_meta(make_meta(market_cap=60_000.0))
-    assert (await db.get_meta(make_meta().mint)).ath_market_cap == pytest.approx(176_373.0)
+    assert loaded is not None
+    assert loaded.symbol == meta.symbol
+    assert loaded.market_cap == pytest.approx(500_000.0)

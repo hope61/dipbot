@@ -14,8 +14,8 @@
 # runtime state
 #
 # The settings table lives in SQLite, so a committed DB would ship someone
-# else's thresholds and watchlist. In Docker this is a named volume at
-# /data/dipbot.sqlite; locally it is ./data/.
+# else's thresholds and watchlist. Both locally and in Docker this is ./data/
+# on the host; Docker bind-mounts it to /data inside the container.
 # ---------------------------------------------------------------------------
 data/
 *.sqlite

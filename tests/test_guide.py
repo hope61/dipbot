@@ -99,13 +99,6 @@ def test_guide_mentions_settings_keys_that_exist():
     assert unknown <= set(settings_ui.BY_KEY), f"unknown settings: {sorted(unknown - set(settings_ui.BY_KEY))}"
 
 
-def test_guide_states_the_peak_limitation():
-    """The peak is not a true all-time high; the guide must not imply it is."""
-    text = guide.PAGES["alert"][1]
-    assert "since this bot started watching" in text
-    assert "Not a" in text and "all-time high" in text
-
-
 def test_guide_explains_the_polled_limitation():
     text = guide.PAGES["badges"][1]
     assert "30 second" in text or "30 seconds" in text

@@ -10,10 +10,23 @@ services:
     environment:
       DATABASE_PATH: /data/dipbot.sqlite
 
-    # SQLite lives on a named volume so `docker compose down` and image
-    # rebuilds keep the watchlist, tuned settings and alert history.
+    # SQLite lives in ./data on the host, bind-mounted, so the database
+    # travels with the project folder: an scp or rsync of the directory
+    # carries the watchlist, tuned settings and alert history with it.
+    #
+    # This was a named volume until it bit us. A Compose volume's real name is
+    # derived from the project name, which defaults to the directory name, so
+    # copying the folder to a VPS under a different directory name silently
+    # created a fresh empty volume. The bot seeded a new database from .env
+    # and came up with no admins and an empty watchlist - it looked like the
+    # admins had reset at random, while the old volume sat there untouched.
+    #
+    # The container runs as uid 10001, and a bind mount takes its ownership
+    # from the host, so ./data must be owned by that uid or the bot cannot
+    # create its database:
+    #     mkdir -p data && sudo chown -R 10001:10001 data
     volumes:
-      - dipbot-data:/data
+      - ./data:/data
 
     # Docker's default json-file driver grows without limit; this bot logs a
     # line per alert and per reconnect, so cap it.
@@ -24,6 +37,3 @@ services:
         max-file: "3"
 
     stop_grace_period: 30s
-
-volumes:
-  dipbot-data:

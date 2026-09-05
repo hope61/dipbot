@@ -104,9 +104,6 @@ class Alert:
     #: the alert window. None when we have no observation to quote.
     mcap_now: float | None = None
     mcap_peak: float | None = None
-    #: Highest market cap seen since this coin was added. Chain-derived, so a
-    #: brief spike between polls still counts.
-    ath: float | None = None
 
 
 def market_cap_move(alert: Alert) -> tuple[float, float] | None:
@@ -150,12 +147,6 @@ def render(alert: Alert) -> str:
     elif current:
         lines.append(f"MC: {fmt_compact(current)}")
 
-    # Highest seen since this coin was added - not a true all-time high, since
-    # nothing gives us its history from before that.
-    ath = alert.ath if alert.ath is not None else (meta.ath_market_cap if meta else None)
-    if ath:
-        lines.append(f"ATH: {fmt_compact(ath)}")
-
     if meta:
         lines.append(f"Age: {fmt_age(meta.age_minutes)}")
         lines.append(f"Vol 5m: {fmt_compact(meta.volume_m5)}")
@@ -178,8 +169,6 @@ def render_added(meta: TokenMeta, added_by: str) -> str:
 
     if meta.market_cap:
         lines.append(f"MC: {fmt_compact(meta.market_cap)}")
-    if meta.ath_market_cap:
-        lines.append(f"ATH: {fmt_compact(meta.ath_market_cap)}")
     lines.append(f"Age: {fmt_age(meta.age_minutes)}")
     lines.append(f"Vol 5m: {fmt_compact(meta.volume_m5)}")
     lines.append(f"Vol 24h: {fmt_compact(meta.volume_h24)}")

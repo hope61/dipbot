@@ -25,7 +25,6 @@ from .bot.middleware import AccessMiddleware
 from .db import Database
 from .detector import WINDOW_SECONDS as detector_windows, Detector
 from .feeds.dexscreener import DexScreener
-from .feeds.geckoterminal import GeckoTerminal, implied_supply
 from .feeds.pool_resolver import PoolResolver
 from .feeds.rpc_feed import RpcFeed
 from .feeds.solana_rpc import SolanaRpc
@@ -36,10 +35,6 @@ from .poller import Poller
 from .sanity import PriceSanity
 
 log = logging.getLogger("dipbot")
-
-#: Seconds between peak lookups. Each costs two GeckoTerminal calls against a
-#: free limit of about 30 a minute.
-PEAK_FETCH_SPACING = 4.0
 
 #: How often the diagnostics task reports feed and detector state.
 DIAGNOSTIC_INTERVAL = 60.0
@@ -73,7 +68,6 @@ async def run() -> None:
     log.info("database  %s (%d settings seeded)", cfg.database_path, seeded)
 
     dex = DexScreener(user_agent=cfg.user_agent)
-    gecko = GeckoTerminal()
     bot = Bot(cfg.bot_token, default=DefaultBotProperties(parse_mode="HTML"))
 
     me = await bot.get_me()
@@ -93,9 +87,6 @@ async def run() -> None:
     sender = AlertSender(bot, cfg.channel_id, cfg.max_alerts_per_minute)
 
     sanity = PriceSanity()
-    #: Highest chain-derived market cap seen per coin, updated on every tick so
-    #: a spike between polls is not missed.
-    chain_ath: dict[str, float] = {}
     detector = Detector(await db.all_settings())
     detector.overrides = await db.all_overrides()
     _watched = await db.list_tokens()
@@ -130,10 +121,6 @@ async def run() -> None:
             return
 
         tick = replace(tick, price_sol=quoted(tick.price_sol))
-
-        live_cap = sanity.market_cap(tick.mint, tick.price_sol)
-        if live_cap:
-            chain_ath[tick.mint] = max(chain_ath.get(tick.mint, 0.0), live_cap)
 
         meta = await db.get_meta(tick.mint)
         alert = detector.on_tick(tick, meta=meta, tier=tiers.get(tick.mint, Tier.REALTIME))
@@ -170,16 +157,11 @@ async def run() -> None:
                 )
                 alert.mcap_now = meta.market_cap
                 alert.mcap_peak = None
-                alert.ath = None
                 sanity.forget(alert.mint)
 
         if alert.mcap_now is None and meta:
             # Not calibrated yet: fall back to the last polled cap alone.
             alert.mcap_now = meta.market_cap
-        alert.ath = max(
-            chain_ath.get(alert.mint, 0.0),
-            (meta.ath_market_cap or 0.0) if meta else 0.0,
-        ) or None
 
         message_id = await sender.send_alert(alert)
         await db.record_alert(
@@ -225,49 +207,6 @@ async def run() -> None:
             except Exception:
                 log.exception("diagnostics failed")
 
-    async def backfill_peaks() -> None:
-        """Fetch a real all-time high for every watched coin, and keep at it.
-
-        Repeats rather than running once, because a peak can become fetchable
-        long after startup: a coin that migrates moves onto a pool with its own
-        history, and the run that happened while it was still on its curve found
-        nothing at all.
-        """
-        # Two poll cycles first: one to populate supply figures, one to let the
-        # poller correct any watchlist row still pointing at a pre-migration
-        # pair. GeckoTerminal knows nothing about those, so asking too early
-        # returns no peak and the ATH stays stuck at the current cap.
-        await asyncio.sleep(45)
-        while True:
-            for token in await db.list_tokens():
-                meta = await db.get_meta(token.mint)
-                supply = implied_supply(meta.market_cap, meta.price_usd) if meta else None
-                if not supply:
-                    continue
-                try:
-                    peak = await gecko.peak_market_cap(token.pair_address, supply)
-                except Exception:
-                    peak = None
-                if peak and peak > (meta.ath_market_cap or 0):
-                    await db.set_ath(token.mint, peak)
-                    log.info(
-                        "%s all-time high %.0f (was %.0f)",
-                        meta.display_symbol, peak, meta.ath_market_cap or 0,
-                    )
-                elif peak is None:
-                    # Silent failure here is how three coins kept an ATH equal
-                    # to their market cap: the whole watchlist was fetched back
-                    # to back, GeckoTerminal rate limited most of it, and every
-                    # error was swallowed.
-                    log.warning(
-                        "no peak for %s (%s): %s", meta.display_symbol,
-                        token.pair_address[:8], gecko.last_error or "no candles",
-                    )
-                # GeckoTerminal allows roughly 30 calls a minute and this costs
-                # two per coin, so the whole watchlist cannot be fetched at once.
-                await asyncio.sleep(PEAK_FETCH_SPACING)
-            await asyncio.sleep(6 * 3600)
-
     async def refresh_detector() -> None:
         """Pick up settings edits and tier changes without a restart."""
         while True:
@@ -283,8 +222,6 @@ async def run() -> None:
                 current = {t.mint for t in watched}
                 for mint in set(sanity.stats()["distrusted"]) - current:
                     sanity.forget(mint)
-                for mint in set(chain_ath) - current:
-                    chain_ath.pop(mint, None)
                 await sender.flush_digest()
             except Exception:
                 log.exception("detector refresh failed")
@@ -322,7 +259,6 @@ async def run() -> None:
     handlers.deps = handlers.Deps(
         db=db, dex=dex, sender=sender, owner_id=cfg.owner_id,
         feed=feed, rpc=rpc, detector=detector, summary=summary, sanity=sanity,
-        gecko=gecko,
     )
 
     dp = Dispatcher()
@@ -344,7 +280,6 @@ async def run() -> None:
         asyncio.create_task(feed.run_forever(), name="rpc-feed"),
         asyncio.create_task(supervisor.run_forever(), name="feed-supervisor"),
         asyncio.create_task(refresh_detector(), name="detector-refresh"),
-        asyncio.create_task(backfill_peaks(), name="peak-backfill"),
         asyncio.create_task(diagnostics(), name="diagnostics"),
         asyncio.create_task(budget.run_forever(), name="budget-guard"),
         asyncio.create_task(health.run_forever(), name="health-monitor"),
@@ -360,7 +295,6 @@ async def run() -> None:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
     await dex.close()
-    await gecko.close()
     await rpc.close()
     await bot.session.close()
     await db.close()

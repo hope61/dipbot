@@ -46,33 +46,20 @@ async def test_clear_leaves_admins_alone(db):
     assert await db.admin_ids() == {555}
 
 
-async def test_clear_keeps_recorded_peaks(db):
-    """So re-adding a coin restores its all-time high instead of starting over."""
+async def test_clear_keeps_token_metadata(db):
+    """So re-adding a coin starts from what was known, not an empty row."""
     from tests.conftest import make_meta
 
     meta = make_meta(market_cap=50_000.0)
     await db.add_token(meta.mint, meta.pair_address, meta.symbol, Tier.REALTIME)
     await db.upsert_meta(meta)
-    await db.set_ath(meta.mint, 176_373.0)
 
     await db.clear_watchlist()
 
     kept = await db.get_meta(meta.mint)
     assert kept is not None
-    assert kept.ath_market_cap == pytest.approx(176_373.0)
-
-
-async def test_re_adding_after_clear_restores_the_peak(db):
-    from tests.conftest import make_meta
-
-    meta = make_meta(market_cap=50_000.0)
-    await db.add_token(meta.mint, meta.pair_address, meta.symbol, Tier.REALTIME)
-    await db.upsert_meta(meta)
-    await db.set_ath(meta.mint, 176_373.0)
-    await db.clear_watchlist()
-
-    await db.add_token(meta.mint, meta.pair_address, meta.symbol, Tier.REALTIME)
-    assert (await db.get_meta(meta.mint)).ath_market_cap == pytest.approx(176_373.0)
+    assert kept.symbol == meta.symbol
+    assert kept.market_cap == pytest.approx(50_000.0)
 
 
 async def test_clear_leaves_alert_history(db):

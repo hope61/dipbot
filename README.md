@@ -8,7 +8,6 @@ channel you own.
 Cate -23% in 1m
 
 MC: 501k -> 384k
-ATH: 1.2M
 Age: 3h 18m
 Vol 5m: 41k
 Vol 24h: 2.3M
@@ -22,7 +21,7 @@ Ai66LHZG9MCzg1WKdawwqduVAXpNDUuV8M3uyq5ppump
 - Four dip windows: 10s, 1m, 3m, 5m, each with its own threshold.
 - Every price cross-checked against a second source before anything is sent.
 - Managed entirely from Telegram; no redeploy to change a threshold.
-- Runs in Docker on a named volume. 528 offline tests.
+- Runs in Docker, state bind-mounted to `./data`. 528 offline tests.
 
 ## Requirements
 
@@ -45,15 +44,22 @@ docker compose up -d --build
 docker compose logs -f
 ```
 
-SQLite lives on a named volume, so image rebuilds and `docker compose down`
-keep the watchlist, tuned settings and alert history. `.env` stays on the host
-and is never baked into the image. The container runs as a non-root user, logs
-are capped at 3×10MB, and SIGTERM shuts it down inside the 30s grace period.
-
-Back up or migrate the whole bot:
+SQLite lives in `./data` on the host, bind-mounted into the container, so image
+rebuilds and `docker compose down` keep the watchlist, tuned settings and alert
+history — and copying the project folder copies the bot's state with it. The
+container runs as uid 10001, so that directory must be owned by it:
 
 ```bash
-docker run --rm -v dipbot_dipbot-data:/data -v "$PWD:/out" alpine tar czf /out/dipbot-backup.tar.gz -C /data .
+mkdir -p data && sudo chown -R 10001:10001 data
+```
+
+`.env` stays on the host and is never baked into the image. Logs are capped at
+3×10MB, and SIGTERM shuts it down inside the 30s grace period.
+
+Back up or migrate the whole bot — `./data` is the whole of its state:
+
+```bash
+tar czf dipbot-backup.tar.gz data/
 ```
 
 ## Configuration
