@@ -175,6 +175,38 @@ async def test_recovery_without_a_reported_outage_is_silent():
     assert notify.messages == []
 
 
+async def test_outage_is_silent_when_nothing_is_watched(db):
+    """An empty watchlist means no alerts are being missed, so no noise."""
+    notify = Recorder()
+    monitor = HealthMonitor(FakeFeed(connected=False), notify, down_after=0, db=db)
+    monitor.down_since = time.time() - 300
+    await monitor.check()
+    assert notify.messages == []
+
+
+async def test_recovery_is_silent_when_the_outage_was(db):
+    notify = Recorder()
+    feed = FakeFeed(connected=False)
+    monitor = HealthMonitor(feed, notify, down_after=0, db=db)
+    monitor.down_since = time.time() - 300
+    await monitor.check()
+
+    feed.connected = True
+    await monitor.check()
+    assert notify.messages == []
+
+
+async def test_outage_is_announced_once_a_coin_is_watched(db):
+    from dipbot.models import Tier
+
+    await db.add_token("mint1", "pair1", "CATE", Tier.REALTIME)
+    notify = Recorder()
+    monitor = HealthMonitor(FakeFeed(connected=False), notify, down_after=0, db=db)
+    monitor.down_since = time.time() - 300
+    await monitor.check()
+    assert len(notify.messages) == 1
+
+
 # --- daily summary ----------------------------------------------------------
 
 
@@ -233,6 +265,17 @@ async def test_summary_posts_to_the_channel(db):
     notify = Recorder()
     await DailySummary(db, FakeFeed(), FakeDex(), notify, "09:00").post()
     assert "Daily summary" in notify.messages[0]
+
+
+async def test_scheduled_summary_is_skipped_when_nothing_is_watched(db):
+    """Nothing tracked, nothing to summarise - the channel stays quiet."""
+    from dipbot.models import Tier
+    from dipbot.ops import watching
+
+    assert await watching(db) is False
+
+    await db.add_token("mint1", "pair1", "CATE", Tier.POLLED)
+    assert await watching(db) is True
 
 
 # --- scheduling -------------------------------------------------------------

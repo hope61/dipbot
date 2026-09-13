@@ -253,7 +253,7 @@ async def run() -> None:
         await sender.send_text(text)
 
     budget = BudgetGuard(db, feed, notify, budget=cfg.credit_budget)
-    health = HealthMonitor(feed, notify)
+    health = HealthMonitor(feed, notify, db=db)
     summary = DailySummary(db, feed, dex, notify, cfg.daily_summary_at, budget)
 
     handlers.deps = handlers.Deps(

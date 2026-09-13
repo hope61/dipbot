@@ -94,17 +94,32 @@ class BudgetGuard:
             await asyncio.sleep(interval)
 
 
+async def watching(db: Database | None) -> bool:
+    """Is anything on the watchlist? Nothing is worth announcing if not.
+
+    An empty watchlist means the feed being up or down changes nothing for the
+    user, so the health and summary posts stay quiet rather than filling an
+    idle channel with noise about a bot that has no work to do.
+    """
+    if db is None:
+        return True
+    return bool(await db.list_tokens())
+
+
 class HealthMonitor:
     """Announces the feed going down and coming back.
 
     Without this, a dead feed is indistinguishable from a quiet market - the
-    channel simply goes silent and nothing says why.
+    channel simply goes silent and nothing says why. With an empty watchlist
+    there is nothing to miss, so neither message is posted; the down clock
+    still runs, so a recovery is only announced if the drop was.
     """
 
-    def __init__(self, feed, notify, down_after: float = 180.0):
+    def __init__(self, feed, notify, down_after: float = 180.0, db: Database | None = None):
         self.feed = feed
         self.notify = notify
         self.down_after = down_after
+        self.db = db
         self.announced_down = False
         self.down_since = 0.0
 
@@ -125,6 +140,8 @@ class HealthMonitor:
             return
 
         if not self.announced_down and time.time() - self.down_since >= self.down_after:
+            if not await watching(self.db):
+                return
             self.announced_down = True
             await self.notify(
                 "🔴 <b>Realtime feed down</b>\n\n"
@@ -233,7 +250,8 @@ class DailySummary:
         while True:
             await asyncio.sleep(seconds_until(self.at))
             try:
-                await self.post()
+                if await watching(self.db):
+                    await self.post()
             except asyncio.CancelledError:
                 raise
             except Exception:
